@@ -43,8 +43,6 @@ if not API_KEY:
 # --- Configuracao da coleta ---
 SEARCH_TERMS = [
     # ---- Portugues ----
-    ("skincare masculino", "pt"),
-    ("rotina de skincare masculina", "pt"),
     ("cuidados masculinos rotina", "pt"),
     ("autocuidado masculino", "pt"),
     ("glow up masculino", "pt"),
@@ -65,6 +63,9 @@ SEARCH_TERMS = [
     ("softmaxxing", "en"),
     ("hardmaxxing", "en"),
     ("mewing tutorial", "en"),
+    ("mindset for men", "en"),
+    ("Andrew Tate", "en"),
+
 ]
 
 MAX_PAGES_PER_TERM = 4          # 4 paginas x 50 = ate ~200 videos por termo
