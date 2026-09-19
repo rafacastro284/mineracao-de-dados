@@ -1,0 +1,7 @@
+Uma nota que vale pro relatório: comentário é conteúdo de usuário e traz o nome de quem escreveu. 
+Pra análise (nuvem de palavras, sentimento, tópicos) você não precisa do autor — então, quando formos minerar, 
+a gente descarta/anonimiza a coluna autor e trabalha só com o texto. É a prática correta de privacidade e 
+já te rende um parágrafo de "considerações éticas" no trabalho.
+
+
+.........
