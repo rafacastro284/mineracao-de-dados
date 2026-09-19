@@ -61,7 +61,7 @@ def duracao_para_segundos(iso):
 
 
 def main():
-    df = pd.read_csv(ENTRADA)
+    df = pd.read_csv(ENTRADA, on_bad_lines='skip', engine='python')
     n_inicial = len(df)
 
     for c in COLS_TEXTO:
