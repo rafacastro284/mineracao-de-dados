@@ -65,7 +65,6 @@ SEARCH_TERMS = [
     ("mewing tutorial", "en"),
     ("mindset for men", "en"),
     ("Andrew Tate", "en"),
-
 ]
 
 MAX_PAGES_PER_TERM = 4          # 4 paginas x 50 = ate ~200 videos por termo
@@ -140,9 +139,13 @@ def detalhes_videos(video_ids):
 
 
 def main():
-    # 1) carrega o que ja existe (para acumular e nao repetir)
+    # 1) carrega o que ja existe (com on_bad_lines para ignorar linhas corrompidas anteriores)
     if OUTPUT_CSV.exists():
-        base = pd.read_csv(OUTPUT_CSV)
+        try:
+            base = pd.read_csv(OUTPUT_CSV, on_bad_lines='skip', engine='python')
+        except Exception:
+            base = pd.read_csv(OUTPUT_CSV, error_bad_lines=False, engine='python') # Compatibilidade extra
+            
         ja_tem = set(base["video_id"].astype(str))
         print(f"Base atual: {len(base)} videos ja coletados.")
     else:
