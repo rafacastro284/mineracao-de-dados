@@ -47,6 +47,15 @@ SEARCH_TERMS = [
     ("Thiago Nigro", "pt"),
     ("Gabriel Breier", "pt"),
     ("Breno Faria", "pt"),
+    ("looksmaxxing", "pt"),
+    ("mewing", "pt"),
+    # ---- Ingles ----
+    ("looksmaxxing men", "en"),
+    ("softmaxxing", "en"),
+    ("hardmaxxing", "en"),
+    ("mewing tutorial", "en"),
+    ("mindset for men", "en"),
+    ("High-value male", "en"),
 ]
 
 MAX_PAGES_PER_TERM = 4          # 4 paginas x 50 = ate ~200 videos por termo
