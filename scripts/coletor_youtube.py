@@ -58,9 +58,9 @@ SEARCH_TERMS = [
     ("High-value male", "en"),
 ]
 
-MAX_PAGES_PER_TERM = 4          # 4 paginas x 50 = ate ~200 videos por termo
+MAX_PAGES_PER_TERM = 6         # 6 paginas x 50 = ate ~300 videos por termo
 RESULTS_PER_PAGE = 50           # maximo da API
-ORDER = "relevance"             # "relevance" | "viewCount" | "date" | "rating"
+ORDER = "viewCount"             # "relevance" | "viewCount" | "date" | "rating"
 RAIZ = Path(__file__).resolve().parent.parent   # scripts/ -> raiz do projeto
 OUTPUT_CSV = RAIZ / "dados" / "brutos" / "videos_masculino.csv"
 
