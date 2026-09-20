@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
 Coletor de metadados do YouTube (v2) -- TP1 Mineracao de Dados
-Tema: nova onda de cuidado/embelezamento masculino (skincare, grooming, looksmaxxing)
+Tema: da onda de cuidado/estetica masculina ate a ideologia (looksmaxxing, manosphere)
 
 NOVIDADES desta versao:
   - ACUMULA: le o CSV que ja existe, ignora videos repetidos e so adiciona os
     novos. Pode rodar varias vezes (ate em dias diferentes) que a base cresce.
-  - Mais termos de busca e mais paginas por termo.
   - Opcao ORDER: rode com "relevance" hoje, "viewCount" e "date" em outros dias
     para pescar videos diferentes com os mesmos termos.
 
@@ -17,8 +16,13 @@ Chave da API: lida da variavel de ambiente YT_API_KEY, ou de um arquivo .env
 (YT_API_KEY=...) na mesma pasta, se voce tiver instalado o python-dotenv.
 
 Cota (limite padrao 10.000 unidades/dia): cada busca custa 100 unidades.
-Com ~21 termos x 4 paginas = ~84 buscas = ~8.400 unidades -> cabe num dia.
 Se quiser mais, rode de novo amanha mudando o ORDER (a base acumula).
+
+Observacao: a busca do YouTube NAO diferencia maiuscula de minuscula
+('Alpha male' == 'alpha male'), entao nao vale duplicar termos so pela caixa.
+
+Para COMENTAR uma linha, use # no comeco dela (nao use aspas triplas '''):
+    # ("termo que nao quero agora", "pt"),
 """
 
 import os
@@ -41,26 +45,23 @@ if not API_KEY:
     raise SystemExit("Defina YT_API_KEY (via 'export' ou num arquivo .env).")
 
 # --- Configuracao da coleta ---
+# Cada item e ("termo", "idioma"). A busca ignora maiuscula/minuscula.
 SEARCH_TERMS = [
-    # ---- Portugues ----
-    ("Rain Santos", "pt"),
-    ("Thiago Nigro", "pt"),
-    ("Gabriel Breier", "pt"),
-    ("Breno Faria", "pt"),
-    ("looksmaxxing", "pt"),
-    ("mewing", "pt"),
-    # ---- Ingles ----
-    ("looksmaxxing men", "en"),
-    ("softmaxxing", "en"),
-    ("hardmaxxing", "en"),
-    ("mewing tutorial", "en"),
-    ("mindset for men", "en"),
-    ("High-value male", "en"),
+    # ---- Portugues (criadores) ----
+    ("rain santos", "pt"),
+    ("thiago nigro", "pt"),
+    ("gabriel breier", "pt"),
+    ("breno faria", "pt"),
+    # ---- Ingles (glossario / masculinidade) ----
+    ("High-value man", "en"),
+    ("Male supremacism", "en"),
+    ("AWALT", "en"),
+    ("Alpha male", "en"),
 ]
 
-MAX_PAGES_PER_TERM = 6         # 6 paginas x 50 = ate ~300 videos por termo
+MAX_PAGES_PER_TERM = 6          # 6 paginas x 50 = ate ~300 videos por termo
 RESULTS_PER_PAGE = 50           # maximo da API
-ORDER = "viewCount"             # "relevance" | "viewCount" | "date" | "rating"
+ORDER = "date"             # "relevance" | "viewCount" | "date" | "rating"
 RAIZ = Path(__file__).resolve().parent.parent   # scripts/ -> raiz do projeto
 OUTPUT_CSV = RAIZ / "dados" / "brutos" / "videos_masculino.csv"
 
@@ -130,13 +131,9 @@ def detalhes_videos(video_ids):
 
 
 def main():
-    # 1) carrega o que ja existe (com on_bad_lines para ignorar linhas corrompidas anteriores)
+    # 1) carrega o que ja existe (ignorando linhas eventualmente corrompidas)
     if OUTPUT_CSV.exists():
-        try:
-            base = pd.read_csv(OUTPUT_CSV, on_bad_lines='skip', engine='python')
-        except Exception:
-            base = pd.read_csv(OUTPUT_CSV, error_bad_lines=False, engine='python') # Compatibilidade extra
-            
+        base = pd.read_csv(OUTPUT_CSV, on_bad_lines="skip", engine="python")
         ja_tem = set(base["video_id"].astype(str))
         print(f"Base atual: {len(base)} videos ja coletados.")
     else:
