@@ -48,10 +48,10 @@ if not API_KEY:
 # Cada item e ("termo", "idioma"). A busca ignora maiuscula/minuscula.
 SEARCH_TERMS = [
     # ---- Portugues (criadores) ----
-    ("rain santos", "pt"),
-    ("thiago nigro", "pt"),
-    ("gabriel breier", "pt"),
-    ("breno faria", "pt"),
+    ("Rain santos", "pt"),
+    ("Thiago nigro", "pt"),
+    ("Gabriel breier", "pt"),
+    ("Breno faria", "pt"),
     # ---- Ingles (glossario / masculinidade) ----
     ("High-value man", "en"),
     ("Male supremacism", "en"),
@@ -61,7 +61,7 @@ SEARCH_TERMS = [
 
 MAX_PAGES_PER_TERM = 6          # 6 paginas x 50 = ate ~300 videos por termo
 RESULTS_PER_PAGE = 50           # maximo da API
-ORDER = "date"             # "relevance" | "viewCount" | "date" | "rating"
+ORDER = "relevance"             # "relevance" | "viewCount" | "date" | "rating"
 RAIZ = Path(__file__).resolve().parent.parent   # scripts/ -> raiz do projeto
 OUTPUT_CSV = RAIZ / "dados" / "brutos" / "videos_masculino.csv"
 
