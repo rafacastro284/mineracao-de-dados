@@ -43,28 +43,19 @@ if not API_KEY:
 # --- Configuracao da coleta ---
 SEARCH_TERMS = [
     # ---- Portugues ----
-    ("cuidados masculinos rotina", "pt"),
-    ("autocuidado masculino", "pt"),
-    ("glow up masculino", "pt"),
-    ("homem se cuidando", "pt"),
-    ("grooming masculino", "pt"),
-    ("cuidados com a barba homem", "pt"),
-    ("dermatologista pele masculina", "pt"),
+    ("Rain Santos", "pt"),
+    ("Thiago Nigro", "pt"),
+    ("Gabriel Breier", "pt"),
+    ("Breno Faria", "pt"),
     ("looksmaxxing", "pt"),
     ("mewing", "pt"),
     # ---- Ingles ----
-    ("men skincare routine", "en"),
-    ("male skincare routine", "en"),
-    ("men grooming routine", "en"),
-    ("men self care routine", "en"),
-    ("men glow up", "en"),
-    ("how to glow up men", "en"),
     ("looksmaxxing men", "en"),
     ("softmaxxing", "en"),
     ("hardmaxxing", "en"),
     ("mewing tutorial", "en"),
     ("mindset for men", "en"),
-    ("Andrew Tate", "en"),
+    ("High-value male", "en"),
 ]
 
 MAX_PAGES_PER_TERM = 4          # 4 paginas x 50 = ate ~200 videos por termo
