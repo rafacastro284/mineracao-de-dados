@@ -1,0 +1,17 @@
+coluna do csv categoria_id
+
+id	Categoria
+1	Filme e Animação
+2	Automóveis
+10 	Música
+17	Esporte
+19	Viagem e Eventos
+20	Jogos
+22	Pessoas e Blogs
+23	Comédia
+24	Entretenimento
+25	Notícias e Política
+26	Moda e Estilo (How-to & Style)
+27	Educação
+28	Ciência e Tecnologia
+
