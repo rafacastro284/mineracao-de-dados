@@ -8,7 +8,10 @@ Salva: <raiz>/dados/processados/videos_classificados.csv
 O que faz:
   - normaliza 'termo_busca' (minusculo + sem espacos nas pontas) para juntar
     variacoes de caixa (ex.: "Rain Santos" e "rain santos" viram o mesmo termo);
-  - descarta linhas corrompidas (termo vazio ou invalido, ex.: "pt");
+  - (AJUSTE - ponto 4) antes de descartar linhas com termo invalido/corrompido
+    (ex.: "pt", "en"), imprime essas linhas para inspecao -- isso ajuda a
+    confirmar se sao mesmo lixo ou se vazou a coluna de idioma para a coluna
+    de termo em algum merge anterior;
   - cria a coluna 'bloco', agrupando os termos em quatro eixos tematicos:
     autocuidado/estetica, looksmaxxing, manosphere/ideologia, criadores_pt;
   - cria a coluna 'categoria' (nome legivel a partir do categoria_id do YouTube).
@@ -23,6 +26,7 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parent.parent   # scripts/ -> raiz do projeto
 ENTRADA = RAIZ / "dados" / "processados" / "videos_limpos.csv"
 SAIDA = RAIZ / "dados" / "processados" / "videos_classificados.csv"
+LOG_DESCARTADOS = RAIZ / "dados" / "processados" / "log_termos_descartados.csv"
 
 # termos que nao sao busca real (corrompidos) -> descartar
 TERMOS_INVALIDOS = {"", "nan", "none", "pt", "en"}
@@ -78,14 +82,32 @@ def main():
     # 2) normaliza o termo de busca (junta variacoes de caixa)
     df["termo_busca"] = df["termo_busca"].astype(str).str.lower().str.strip()
 
-    # 3) descarta linhas com termo invalido/corrompido (ex.: "pt")
+    # 3) (AJUSTE - ponto 4) antes de descartar, inspeciona quem tem termo
+    #    invalido/corrompido -- salva num log e mostra uma amostra no terminal,
+    #    em vez de simplesmente jogar fora sem olhar.
+    corrompidos = df[df["termo_busca"].isin(TERMOS_INVALIDOS)].copy()
+    if len(corrompidos):
+        LOG_DESCARTADOS.parent.mkdir(parents=True, exist_ok=True)
+        corrompidos.to_csv(LOG_DESCARTADOS, index=False)
+        print(f"\n[AVISO] {len(corrompidos)} linha(s) com termo_busca invalido "
+              f"(ex.: 'pt'/'en') foram encontradas.")
+        print(f"Salvei todas em: {LOG_DESCARTADOS}")
+        print("Amostra (ate 5 linhas) para conferencia rapida:")
+        colunas_amostra = [c for c in ["video_id", "titulo", "termo_busca", "idioma_termo"]
+                            if c in corrompidos.columns]
+        print(corrompidos[colunas_amostra].head(5).to_string(index=False))
+        print("-> Se forem mesmo lixo (ex.: vazamento da coluna idioma_termo "
+              "num merge anterior), OK descartar. Se parecerem recuperaveis, "
+              "vale investigar o script de coleta/limpeza antes de rodar de novo.\n")
+
+    # 4) descarta linhas com termo invalido/corrompido (ex.: "pt")
     df = df[~df["termo_busca"].isin(TERMOS_INVALIDOS)].copy()
     n_descartados = n0 - len(df)
 
-    # 4) classifica em blocos
+    # 5) classifica em blocos
     df["bloco"] = df["termo_busca"].map(classificar)
 
-    # 5) categoria legivel a partir do categoria_id do YouTube
+    # 6) categoria legivel a partir do categoria_id do YouTube
     df["categoria"] = df["categoria_id"].map(nome_categoria)
 
     SAIDA.parent.mkdir(parents=True, exist_ok=True)

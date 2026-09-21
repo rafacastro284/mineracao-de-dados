@@ -8,6 +8,10 @@ NOVIDADES desta versao:
     novos. Pode rodar varias vezes (ate em dias diferentes) que a base cresce.
   - Opcao ORDER: rode com "relevance" hoje, "viewCount" e "date" em outros dias
     para pescar videos diferentes com os mesmos termos.
+  - (AJUSTE - ponto 8) PUBLISHED_AFTER / PUBLISHED_BEFORE: filtro opcional de
+    data de publicacao, para quem quiser restringir o recorte temporal da
+    coleta (ex.: so videos publicados a partir de 2023). Deixe None em ambos
+    para manter o comportamento antigo (sem filtro de data).
 
 Como usar (de dentro da pasta scripts/):
     python3 coletor_youtube.py
@@ -62,6 +66,15 @@ SEARCH_TERMS = [
 MAX_PAGES_PER_TERM = 6          # 6 paginas x 50 = ate ~300 videos por termo
 RESULTS_PER_PAGE = 50           # maximo da API
 ORDER = "relevance"             # "relevance" | "viewCount" | "date" | "rating"
+
+# (AJUSTE - ponto 8) filtro opcional de recorte temporal da coleta.
+# Formato RFC 3339 (obrigatorio "Z" no final, meia-noite UTC).
+# Deixe None para nao filtrar por data (comportamento antigo).
+#   PUBLISHED_AFTER = "2023-01-01T00:00:00Z"
+#   PUBLISHED_BEFORE = "2026-01-01T00:00:00Z"
+PUBLISHED_AFTER = None
+PUBLISHED_BEFORE = None
+
 RAIZ = Path(__file__).resolve().parent.parent   # scripts/ -> raiz do projeto
 OUTPUT_CSV = RAIZ / "dados" / "brutos" / "videos_masculino.csv"
 
@@ -73,16 +86,24 @@ def buscar_ids(termo, idioma):
     ids = []
     page_token = None
     for _ in range(MAX_PAGES_PER_TERM):
+        # (AJUSTE - ponto 8) monta os kwargs da busca, so incluindo os filtros
+        # de data quando eles estiverem configurados acima.
+        kwargs = dict(
+            q=termo,
+            part="id",
+            type="video",
+            maxResults=RESULTS_PER_PAGE,
+            order=ORDER,
+            pageToken=page_token,
+            relevanceLanguage=idioma,
+        )
+        if PUBLISHED_AFTER:
+            kwargs["publishedAfter"] = PUBLISHED_AFTER
+        if PUBLISHED_BEFORE:
+            kwargs["publishedBefore"] = PUBLISHED_BEFORE
+
         try:
-            resp = youtube.search().list(
-                q=termo,
-                part="id",
-                type="video",
-                maxResults=RESULTS_PER_PAGE,
-                order=ORDER,
-                pageToken=page_token,
-                relevanceLanguage=idioma,
-            ).execute()
+            resp = youtube.search().list(**kwargs).execute()
         except HttpError as e:
             print(f"  ! Erro na busca por '{termo}': {e}")
             break
@@ -131,6 +152,10 @@ def detalhes_videos(video_ids):
 
 
 def main():
+    if PUBLISHED_AFTER or PUBLISHED_BEFORE:
+        print(f"Filtro de data ativo: publishedAfter={PUBLISHED_AFTER}  "
+              f"publishedBefore={PUBLISHED_BEFORE}")
+
     # 1) carrega o que ja existe (ignorando linhas eventualmente corrompidas)
     if OUTPUT_CSV.exists():
         base = pd.read_csv(OUTPUT_CSV, on_bad_lines="skip", engine="python")
