@@ -3,10 +3,10 @@
 Lematizacao (PLN) dos titulos + descricoes -- TP1 Mineracao de Dados
 
 Processa cada video no idioma certo (PT -> pt_core_news_sm, EN -> en_core_web_sm)
-e gera a coluna 'lemas': o texto ja limpo, sem stopwords e lematizado, pronto
-para nuvem de palavras / topic modeling / agrupamento.
+e gera a coluna 'lemas': o texto ja limpo, sem stopwords (customizadas) e
+lematizado, pronto para nuvem de palavras / topic modeling / agrupamento.
 
-AJUSTES DESTA VERSAO (pontos 1, 2 e 3 da revisao):
+AJUSTES DESTA VERSAO:
   1) Antes de remover numeros do texto, extrai mencoes monetarias/numericas
      (ex.: "R$50 mil", "10k", "3 meses") para colunas separadas
      ('menciona_valor' e 'valores_extraidos'), porque esse sinal e central
@@ -18,6 +18,13 @@ AJUSTES DESTA VERSAO (pontos 1, 2 e 3 da revisao):
      -> idioma_termo como ultimo recurso. Fica salvo em 'idioma_real'.
   3) Emojis sao extraidos para a coluna 'emojis' ANTES da limpeza, em vez
      de serem simplesmente descartados (carregam sinal emocional no nicho).
+  4) (NOVO) Stopwords customizadas por idioma: pronomes de 2a pessoa
+     ("voce", "you") e verbos modais/de comando ("pode", "precisa", "can",
+     "should") sao RETIRADOS da lista de stopwords do spaCy -- ou seja,
+     continuam aparecendo nos lemas em vez de serem descartados -- porque
+     carregam o sinal de retorica persuasiva/venda que e objeto da pesquisa.
+     A lista fica em MANTER_NO_TEXTO, documentada logo abaixo, e e aplicada
+     dentro de carrega_modelo().
 
 Pre-requisitos (rodar UMA vez):
     pip3 install --break-system-packages spacy langdetect emoji
@@ -48,6 +55,29 @@ SAIDA = RAIZ / "dados" / "processados" / "videos_lematizados.csv"
 
 MAX_CHARS = 2000        # corta descricoes muito longas (links/boilerplate)
 MODELOS = {"pt": "pt_core_news_sm", "en": "en_core_web_sm"}
+
+# --- (4) Stopwords customizadas por idioma ---
+# Palavras que o spaCy remove por padrao, mas que carregam sinal retorico
+# relevante pro tema (persuasao / 2a pessoa / comando) -- por isso sao
+# RETIRADAS da lista de stopwords (continuam aparecendo nos lemas, nao
+# sao mais descartadas). Decisao documentada tambem no relatorio.
+MANTER_NO_TEXTO = {
+    "pt": {
+        # pronomes de 2a pessoa (nucleo da retorica de venda direta)
+        "você", "voce", "tu", "vc", "vcs", "vocês", "voces",
+        "te", "ti", "teu", "tua", "teus", "tuas",
+        "seu", "sua", "seus", "suas",
+        # verbos modais/imperativos de comando ou promessa
+        "pode", "podes", "poder", "deve", "deves", "dever",
+        "precisa", "precisas", "precisar",
+        "vai", "vais",
+        "quer", "queres", "querer",
+    },
+    "en": {
+        "you", "your", "yours", "yourself",
+        "can", "should", "need", "will", "want",
+    },
+}
 
 URL = re.compile(r"http\S+|www\.\S+")
 SO_LETRAS = re.compile(r"[^a-zà-ÿ\s]")   # mantem letras (com acento) e espacos
@@ -107,14 +137,23 @@ def idioma_real(row):
     return str(row.get("idioma_termo", "")).strip().lower()[:2]
 
 
-def carrega_modelo(nome):
+def carrega_modelo(nome, idioma):
+    """Carrega o modelo spaCy e aplica a lista de stopwords customizada (4)
+    correspondente ao idioma -- ou seja, remove essas palavras da lista de
+    stopwords do modelo, entao elas passam a APARECER nos lemas.
+    """
     try:
         # desliga parser e ner: so precisamos de tags/lemas -> bem mais rapido
-        return spacy.load(nome, disable=["parser", "ner"])
+        nlp = spacy.load(nome, disable=["parser", "ner"])
     except OSError:
         raise SystemExit(
             f"Modelo '{nome}' nao instalado. Rode: python3 -m spacy download {nome}"
         )
+
+    for palavra in MANTER_NO_TEXTO.get(idioma, set()):
+        nlp.vocab[palavra].is_stop = False
+
+    return nlp
 
 
 def lematiza(textos, nlp):
@@ -160,8 +199,9 @@ def main():
         n = int(mask.sum())
         if n == 0:
             continue
-        print(f"Lematizando {n} videos [{idioma}] com {modelo} ...")
-        nlp = carrega_modelo(modelo)
+        print(f"Lematizando {n} videos [{idioma}] com {modelo} "
+              f"(stopwords customizadas: {len(MANTER_NO_TEXTO.get(idioma, set()))} palavras mantidas) ...")
+        nlp = carrega_modelo(modelo, idioma)
         df.loc[mask, "lemas"] = lematiza(df.loc[mask, "texto"].tolist(), nlp)
 
     # videos cujo idioma_real nao caiu em 'pt' nem 'en' ficam sem lema --
