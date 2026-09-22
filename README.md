@@ -24,12 +24,17 @@ cuidado pessoal como porta de entrada ("softmaxxing") de um funil maior.
 | Pré-processamento / limpeza | ✅ Feito |
 | Classificação em blocos + categoria legível | ✅ Feito |
 | Lematização (PLN) de títulos + descrições | ✅ Feito |
-| Coleta de comentários | ⬜ Pendente (script pronto) |
-| Mineração (agrupamento / engajamento / PT×EN) | ⬜ **Próximo passo** |
+| Coleta de comentários | ✅ Feita — 177.640 comentários — ⬜ falta anonimizar `autor` e usar na análise |
+| Mineração — engajamento por bloco/idioma/ano | ✅ Feito |
+| Mineração — evolução temporal por bloco | ✅ Feito |
+| Mineração — comparação estatística PT × EN | ✅ Feito |
+| Mineração — agrupamento / topic modeling (BERTopic) | ⬜ Rodado, falta preencher a classificação manual dos tópicos |
+| Levantamento de literatura | ⬜ A fazer |
 | Relatório (LaTeX) | ⬜ A fazer |
 | Apresentação | ⬜ A fazer |
 
 **A base final para a mineração é `dados/processados/videos_lematizados.csv`.**
+**Os resultados da mineração ficam em `dados/processados/resultados/`.**
 
 ---
 
@@ -46,14 +51,17 @@ mineracao-de-dados/
 │       ├── videos_classificados.csv
 │       ├── videos_lematizados.csv   <- base final
 │       ├── resumo_termos.csv
-│       └── videos_por_ano.csv
+│       ├── videos_por_ano.csv
+│       └── resultados/  # tabelas .csv + gráficos .png da mineração
 ├── scripts/
 │   ├── coletor_youtube.py     # coleta metadados dos vídeos (acumula)
 │   ├── coletor_comentarios.py # coleta comentários dos vídeos
 │   ├── limpeza.py             # gera a base limpa
 │   ├── classifica_blocos.py   # cria as colunas 'bloco' e 'categoria'
 │   ├── lematiza.py            # lematiza títulos+descrições (spaCy PT/EN)
-│   └── resumo_termos.py       # relatórios de apoio (termos, por ano)
+│   ├── resumo_termos.py       # relatórios de apoio (termos, por ano)
+│   ├── analise_frequencia.py  # mineração: cruzamentos, engajamento, evolução temporal, PT×EN
+│   └── bertopics.py           # mineração: topic modeling (BERTopic) por idioma
 ├── notebooks/           # exploração e mineração
 ├── relatorio/           # relatório em LaTeX
 ├── README.md
@@ -90,6 +98,8 @@ python3 scripts/coletor_youtube.py       # 1. coleta/atualiza os vídeos (precis
 python3 scripts/limpeza.py               # 2. gera a base limpa
 python3 scripts/classifica_blocos.py     # 3. cria 'bloco' e 'categoria'
 python3 scripts/lematiza.py              # 4. cria 'lemas'
+python3 scripts/analise_frequencia.py    # 5. mineração: cruzamentos, engajamento, evolução, PT×EN
+python3 scripts/bertopics.py             # 6. mineração: topic modeling (rodar 2x, ver script)
 ```
 Quem só vai **minerar** nem precisa coletar: um `git pull` e usar o
 `videos_lematizados.csv`. Os caminhos são resolvidos automaticamente.
@@ -117,6 +127,24 @@ Quem só vai **minerar** nem precisa coletar: um `git pull` e usar o
 
 ---
 
+## Resultados da mineração (`dados/processados/resultados/`)
+
+Gerados por `analise_frequencia.py`:
+- `resumo_geral_por_bloco.csv` — n, % menciona valor, mediana de views, % emoji, por bloco
+- `tabela_bloco_x_menciona_valor.csv`, `grafico_bloco_x_menciona_valor.png`
+- `grafico_views_x_menciona_valor.png`, `grafico_bloco_x_emoji.png`, `grafico_views_entre_blocos.png`
+- `engajamento_por_bloco.csv` / `engajamento_por_idioma.csv` (só PT/EN) / `engajamento_por_ano.csv`
+- `concentracao_por_canal.csv`
+- `evolucao_temporal.csv`, `grafico_evolucao_temporal.png` — % menciona valor ao longo dos anos, uma linha por bloco
+- `comparacao_pt_en.csv` — comparação estatística PT × EN (menção a valor: qui-quadrado; engajamento: Mann-Whitney)
+
+Gerados por `bertopics.py` (topic modeling por idioma):
+- `topicos_pt.csv` / `topicos_en.csv`, `topicos_pt_resumo.csv` / `topicos_en_resumo.csv`
+- `topicos_pt_PARA_CLASSIFICAR.csv` / `topicos_en_PARA_CLASSIFICAR.csv` — **preencher `categoria_manual` à mão** e rodar o script de novo para gerar `videos_com_categoria_topico.csv`
+- `grafico_topicos_pt.png` / `grafico_topicos_en.png`, `topicos_pt_barchart.html` / `topicos_en_barchart.html`, `topicos_pt_mapa.html` / `topicos_en_mapa.html`
+
+---
+
 ## Decisões e observações
 
 - **Coleta acumulativa:** o coletor não sobrescreve; lê a base e só adiciona vídeos
@@ -137,10 +165,8 @@ Quem só vai **minerar** nem precisa coletar: um `git pull` e usar o
 
 ## Próximos passos (dividir entre o time)
 
-- [ ] (Opcional) Rodar a coleta de comentários
-- [ ] Mineração — temas (agrupamento / topic modeling sobre `lemas`)
-- [ ] Mineração — engajamento por bloco/idioma/ano
-- [ ] Mineração — comparação PT × EN
+- [ ] Preencher `categoria_manual` nas planilhas do BERTopic e rodar `bertopics.py` de novo
+- [ ] (Opcional) Anonimizar `autor` em `comentarios.csv` e usar os comentários na análise
 - [ ] Levantar 2–4 trabalhos recentes da literatura sobre o tema
 - [ ] Escrever o relatório (LaTeX)
 - [ ] Montar a apresentação

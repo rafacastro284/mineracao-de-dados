@@ -22,6 +22,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import seaborn as sns
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -157,9 +158,9 @@ def views_entre_blocos_kruskal(df):
     return h, p
 
 
-def engajamento_por_bloco(df):
-    """Taxa de engajamento (likes/views e comentarios/views) por bloco --
-    mede o quanto quem viu de fato interagiu, nao so alcance bruto."""
+def _com_taxas_engajamento(df):
+    """Adiciona taxa_like e taxa_comentario (likes/views, comentarios/views)
+    a uma copia do df, descartando views <= 0."""
     d = df.copy()
     d["likes"] = pd.to_numeric(d.get("likes"), errors="coerce")
     d["comentarios"] = pd.to_numeric(d.get("comentarios"), errors="coerce")
@@ -167,6 +168,13 @@ def engajamento_por_bloco(df):
 
     d["taxa_like"] = d["likes"] / d["views"]
     d["taxa_comentario"] = d["comentarios"] / d["views"]
+    return d
+
+
+def engajamento_por_bloco(df):
+    """Taxa de engajamento (likes/views e comentarios/views) por bloco --
+    mede o quanto quem viu de fato interagiu, nao so alcance bruto."""
+    d = _com_taxas_engajamento(df)
 
     resumo = d.groupby("bloco").agg(
         mediana_taxa_like=("taxa_like", "median"),
@@ -186,6 +194,50 @@ def engajamento_por_bloco(df):
     plt.tight_layout()
     plt.savefig(SAIDA_DIR / "grafico_engajamento_por_bloco.png", dpi=150)
     plt.close()
+
+    return resumo
+
+
+def engajamento_por_idioma(df):
+    """Taxa de engajamento (likes/views e comentarios/views) por idioma
+    real do video (idioma_real). So pt/en tem volume e modelo de lematizacao
+    -- os demais sao cauda longa (poucos videos cada) e ficam de fora."""
+    if "idioma_real" not in df.columns:
+        print("\n(coluna 'idioma_real' nao encontrada -- pulando engajamento por idioma)")
+        return None
+
+    d = _com_taxas_engajamento(df)
+    d = d[d["idioma_real"].isin(["pt", "en"])]
+
+    resumo = d.groupby("idioma_real").agg(
+        mediana_taxa_like=("taxa_like", "median"),
+        mediana_taxa_comentario=("taxa_comentario", "median"),
+    ).round(5).sort_values("mediana_taxa_like", ascending=False)
+
+    print("\n=== ENGAJAMENTO (likes/views, comentarios/views) POR IDIOMA ===")
+    print(resumo)
+    resumo.to_csv(SAIDA_DIR / "engajamento_por_idioma.csv")
+
+    return resumo
+
+
+def engajamento_por_ano(df):
+    """Taxa de engajamento (likes/views e comentarios/views) por ano
+    de publicacao."""
+    if "ano" not in df.columns:
+        print("\n(coluna 'ano' nao encontrada -- pulando engajamento por ano)")
+        return None
+
+    d = _com_taxas_engajamento(df)
+
+    resumo = d.groupby("ano").agg(
+        mediana_taxa_like=("taxa_like", "median"),
+        mediana_taxa_comentario=("taxa_comentario", "median"),
+    ).round(5).sort_index()
+
+    print("\n=== ENGAJAMENTO (likes/views, comentarios/views) POR ANO ===")
+    print(resumo)
+    resumo.to_csv(SAIDA_DIR / "engajamento_por_ano.csv")
 
     return resumo
 
@@ -219,8 +271,8 @@ def concentracao_por_canal(df):
 
 
 def evolucao_temporal(df):
-    """Evolucao de menciona_valor e views ao longo do tempo, usando
-    publicado_em. Agrupa por ano (ou ano-mes se quiser mais granularidade)."""
+    """Evolucao de menciona_valor ao longo do tempo, por bloco tematico.
+    Agrupa por ano E bloco, para comparar a trajetoria de cada bloco."""
     if "publicado_em" not in df.columns:
         print("\n(coluna 'publicado_em' nao encontrada -- pulando evolucao temporal)")
         return None
@@ -230,27 +282,115 @@ def evolucao_temporal(df):
     d = d.dropna(subset=["data"])
     d["ano"] = d["data"].dt.year
 
-    evolucao = d.groupby("ano").agg(
+    evolucao = d.groupby(["ano", "bloco"]).agg(
         n_videos=("bloco", "count"),
         pct_menciona_valor=("menciona_valor", "mean"),
         mediana_views=("views", "median"),
     ).round(3)
 
-    print("\n=== EVOLUCAO TEMPORAL (por ano de publicacao) ===")
+    print("\n=== EVOLUCAO TEMPORAL (por ano de publicacao e bloco) ===")
     print(evolucao)
     evolucao.to_csv(SAIDA_DIR / "evolucao_temporal.csv")
 
-    fig, ax1 = plt.subplots(figsize=(9, 5))
-    ax1.plot(evolucao.index, evolucao["pct_menciona_valor"], marker="o", color="firebrick")
-    ax1.set_xlabel("Ano de publicacao")
-    ax1.set_ylabel("Proporcao de videos que mencionam valor", color="firebrick")
-    ax1.tick_params(axis="y", labelcolor="firebrick")
-    plt.title("Mencao a valor monetario ao longo do tempo")
+    # cores categoricas fixas (paleta do time), uma por bloco, na mesma ordem sempre
+    CORES_BLOCO = {
+        "manosphere/ideologia": "#2a78d6",
+        "autocuidado/estetica": "#eb6834",
+        "criadores_pt": "#1baf7a",
+        "looksmaxxing": "#eda100",
+    }
+    MARCADORES_BLOCO = {
+        "manosphere/ideologia": "o",
+        "autocuidado/estetica": "s",
+        "criadores_pt": "^",
+        "looksmaxxing": "D",
+    }
+
+    pivot = evolucao["pct_menciona_valor"].unstack("bloco")
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    for bloco in pivot.columns:
+        ax.plot(
+            pivot.index, pivot[bloco],
+            marker=MARCADORES_BLOCO.get(bloco, "o"),
+            color=CORES_BLOCO.get(bloco),
+            label=bloco,
+        )
+    ax.set_xlabel("Ano de publicacao")
+    ax.set_ylabel("Proporcao de videos que mencionam valor")
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.legend(title="Bloco tematico")
+    plt.title("Mencao a valor monetario ao longo do tempo, por bloco")
     plt.tight_layout()
     plt.savefig(SAIDA_DIR / "grafico_evolucao_temporal.png", dpi=150)
     plt.close()
 
     return evolucao
+
+
+def comparacao_pt_en(df):
+    """Comparacao estatistica PT x EN (corte Brasil x mundo anglofono),
+    em duas dimensoes: mencao a valor monetario (qui-quadrado) e
+    engajamento -- taxa de like e taxa de comentario (Mann-Whitney, o
+    mesmo teste nao-parametrico ja usado no Kruskal-Wallis por blocos,
+    pois as taxas tambem nao seguem distribuicao normal)."""
+    if "idioma_real" not in df.columns:
+        print("\n(coluna 'idioma_real' nao encontrada -- pulando comparacao PT x EN)")
+        return None
+
+    d = df[df["idioma_real"].isin(["pt", "en"])].copy()
+    linhas = []
+
+    # 1) mencao a valor monetario: qui-quadrado sobre a tabela de contingencia
+    tab = pd.crosstab(d["idioma_real"], d["menciona_valor"])
+    chi2, p_valor, dof, _ = stats.chi2_contingency(tab)
+    prop_pt = d.loc[d["idioma_real"] == "pt", "menciona_valor"].mean()
+    prop_en = d.loc[d["idioma_real"] == "en", "menciona_valor"].mean()
+
+    print("\n=== COMPARACAO PT x EN -- MENCAO A VALOR MONETARIO ===")
+    print(f"Proporcao PT: {prop_pt:.3f}  |  Proporcao EN: {prop_en:.3f}")
+    print(f"Qui-quadrado = {chi2:.2f}, gl = {dof}, p-valor = {p_valor:.4f}")
+    if p_valor < 0.05:
+        print("-> Diferenca estatisticamente significativa entre PT e EN (p < 0.05).")
+    else:
+        print("-> Nao ha evidencia estatistica de diferenca entre PT e EN (p >= 0.05).")
+
+    linhas.append({
+        "dimensao": "menciona_valor", "teste": "qui-quadrado",
+        "valor_pt": round(prop_pt, 5), "valor_en": round(prop_en, 5),
+        "estatistica": round(chi2, 4), "p_valor": round(p_valor, 4),
+        "significativo": p_valor < 0.05,
+    })
+
+    # 2) engajamento: taxa_like e taxa_comentario, comparadas com Mann-Whitney
+    d_taxas = _com_taxas_engajamento(d)
+    print("\n=== COMPARACAO PT x EN -- ENGAJAMENTO ===")
+    for metrica in ["taxa_like", "taxa_comentario"]:
+        pt_vals = d_taxas.loc[d_taxas["idioma_real"] == "pt", metrica].dropna()
+        en_vals = d_taxas.loc[d_taxas["idioma_real"] == "en", metrica].dropna()
+        u, p = stats.mannwhitneyu(pt_vals, en_vals, alternative="two-sided")
+        mediana_pt = pt_vals.median()
+        mediana_en = en_vals.median()
+
+        print(f"\n[{metrica}]")
+        print(f"Mediana PT: {mediana_pt:.5f}  |  Mediana EN: {mediana_en:.5f}")
+        print(f"Mann-Whitney U = {u:.1f}, p-valor = {p:.4f}")
+        if p < 0.05:
+            print("-> Diferenca estatisticamente significativa entre PT e EN (p < 0.05).")
+        else:
+            print("-> Nao ha evidencia estatistica de diferenca entre PT e EN (p >= 0.05).")
+
+        linhas.append({
+            "dimensao": metrica, "teste": "mann-whitney",
+            "valor_pt": round(mediana_pt, 5), "valor_en": round(mediana_en, 5),
+            "estatistica": round(u, 4), "p_valor": round(p, 4),
+            "significativo": p < 0.05,
+        })
+
+    resultado = pd.DataFrame(linhas)
+    resultado.to_csv(SAIDA_DIR / "comparacao_pt_en.csv", index=False)
+    print(f"\n>>> Comparacao PT x EN salva em: {SAIDA_DIR / 'comparacao_pt_en.csv'}")
+    return resultado
 
 
 def resumo_geral(df):
@@ -283,8 +423,11 @@ def main():
     emoji_x_bloco(df)
     views_entre_blocos_kruskal(df)
     engajamento_por_bloco(df)
+    engajamento_por_idioma(df)
+    engajamento_por_ano(df)
     concentracao_por_canal(df)
     evolucao_temporal(df)
+    comparacao_pt_en(df)
 
     print(f"\nTudo salvo em: {SAIDA_DIR}")
     print("(tabelas .csv + graficos .png prontos para colar no relatorio)")

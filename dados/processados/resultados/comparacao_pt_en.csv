@@ -1,0 +1,4 @@
+dimensao,teste,valor_pt,valor_en,estatistica,p_valor,significativo
+menciona_valor,qui-quadrado,0.04481,0.02507,25.4198,0.0,True
+taxa_like,mann-whitney,0.04095,0.02674,11268180.0,0.0,True
+taxa_comentario,mann-whitney,0.00101,0.00069,9971936.5,0.0,True
