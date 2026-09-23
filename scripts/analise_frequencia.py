@@ -393,6 +393,30 @@ def comparacao_pt_en(df):
     return resultado
 
 
+def grafico_pt_en_menciona_valor(df):
+    """Grafico de barras horizontais (PT x EN) com a proporcao de videos que
+    mencionam valor monetario -- versao enxuta para colar num slide."""
+    if "idioma_real" not in df.columns:
+        print("\n(coluna 'idioma_real' nao encontrada -- pulando grafico PT x EN)")
+        return None
+
+    d = df[df["idioma_real"].isin(["pt", "en"])]
+    prop = d.groupby("idioma_real")["menciona_valor"].mean().sort_values(ascending=False)
+
+    plt.figure(figsize=(7, 4))
+    ax = sns.barplot(x=prop.values, y=prop.index, hue=prop.index, legend=False, palette="viridis")
+    for i, v in enumerate(prop.values):
+        ax.text(v, i, f" {v:.1%}", va="center")
+    plt.xlabel("Proporcao de videos que mencionam valor monetario/numerico")
+    plt.ylabel("Idioma")
+    plt.title("Mencao a valor monetario: PT x EN")
+    plt.tight_layout()
+    plt.savefig(SAIDA_DIR / "grafico_pt_x_en_menciona_valor.png", dpi=150)
+    plt.close()
+
+    return prop
+
+
 def resumo_geral(df):
     """Tabela resumo por bloco: n, % com valor, mediana de views, % com emoji.
     Boa para colar direto numa tabela do relatorio."""
@@ -428,6 +452,7 @@ def main():
     concentracao_por_canal(df)
     evolucao_temporal(df)
     comparacao_pt_en(df)
+    grafico_pt_en_menciona_valor(df)
 
     print(f"\nTudo salvo em: {SAIDA_DIR}")
     print("(tabelas .csv + graficos .png prontos para colar no relatorio)")
