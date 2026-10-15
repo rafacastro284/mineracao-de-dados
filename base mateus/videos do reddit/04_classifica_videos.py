@@ -27,15 +27,26 @@ Colunas novas:
   revisado           True se a linha foi revisada à mão
   conteudo_final     conteudo_manual se preenchido, senão conteudo -> use esta na análise
   tags, descricao    vindos da API (descrição cortada em 500 caracteres)
+  retornado          True se a API devolveu o vídeo; False = apagado/privado depois da
+                     etapa 3 -> descrição/tags vazias aqui significam "desconhecido",
+                     não "vídeo sem descrição" (trate como desconhecido nas etapas seguintes)
+  amostra            True para os vídeos da amostra aleatória de validação (ver abaixo)
 
 Revisão manual (RODE ESTE SCRIPT DUAS VEZES, como no scripts/bertopics.py):
   - 1a vez: gera youtube_videos_PARA_REVISAR.csv, com a coluna 'conteudo_manual' vazia,
-    ordenada por prioridade (1 = temas centrais do projeto, 2 = baixa confiança, 3 = resto).
+    ordenada por prioridade (0 = amostra aleatória de validação, 1 = temas centrais do
+    projeto, 2 = baixa confiança, 3 = resto).
+  - AMOSTRA (prioridade 0): TAMANHO_AMOSTRA vídeos sorteados (SEMENTE fixa) entre todos.
+    Revise TODAS essas linhas e marque 'revisado' com x em cada uma (inclusive as certas):
+    é delas que sai a taxa de acerto para o artigo. As demais prioridades foram escolhidas
+    a dedo (temas centrais, baixa confiança), então o acerto nelas é enviesado e serve só
+    como diagnóstico.
   - Abra no Excel/Sheets e preencha 'conteudo_manual' só onde o automático errou, com um
     dos nomes de TEMAS ou "outros" (vazio = o automático está certo). Salve por cima,
     mesmo nome, formato CSV.
   - 2a vez: o script lê a planilha e cria 'conteudo_final' (manual se preenchido, senão o
-    automático) e mostra o acerto do automático nas linhas revisadas. A planilha nunca é
+    automático) e mostra o acerto do automático na amostra aleatória (com intervalo de
+    confiança de 95%) e, à parte, nas demais linhas revisadas. A planilha nunca é
     sobrescrita; para gerar uma nova do zero, apague-a.
 
 Para ajustar: edite TEMAS, CATEGORIA_TEMAS, LIMIAR ou BONUS_CATEGORIA e rode de novo
@@ -69,6 +80,8 @@ API = "https://www.googleapis.com/youtube/v3"
 MODELO_EMBEDDING = "paraphrase-multilingual-MiniLM-L12-v2"
 LIMIAR = 0.30           # pontuação mínima; abaixo disso o vídeo vai para "outros"
 BONUS_CATEGORIA = 0.10  # soma à similaridade quando o tema combina com a categoria do YouTube
+TAMANHO_AMOSTRA = 200   # vídeos sorteados para medir o acerto sem viés
+SEMENTE = 42            # fixa: o sorteio é sempre o mesmo
 
 # categorias oficiais do YouTube (id -> nome legível)
 CATEGORIAS_YT = {
@@ -167,7 +180,9 @@ def carrega_detalhes(video_ids):
     if CACHE.exists():
         with open(CACHE, encoding="utf-8") as f:
             cache = {r["video_id"]: r for r in map(json.loads, f)}
-    faltam = [v for v in video_ids if v not in cache]
+    # registros antigos, sem 'retornado', são buscados de novo (não dá para saber se a API
+    # devolveu o vídeo); a versão nova vai para o fim do arquivo e prevalece na leitura
+    faltam = [v for v in video_ids if "retornado" not in cache.get(v, {})]
     print(f"detalhes: {len(cache)} no cache | a buscar: {len(faltam)}")
     if faltam:
         key = (os.environ.get("YOUTUBE_API_KEY") or os.environ.get("YT_API_KEY")
@@ -178,8 +193,8 @@ def carrega_detalhes(video_ids):
                 achados = busca_detalhes(lote, key)
                 for v in lote:
                     sn = achados.get(v, {})
-                    rec = {"video_id": v, "descricao": sn.get("description", ""),
-                           "tags": sn.get("tags", [])}
+                    rec = {"video_id": v, "retornado": v in achados,
+                           "descricao": sn.get("description", ""), "tags": sn.get("tags", [])}
                     cache[v] = rec
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 print(f"  {min(i + 50, len(faltam))}/{len(faltam)}", end="\r")
@@ -211,7 +226,7 @@ def classifica_conteudo(textos, categorias):
 TEMAS_CENTRAIS = {"autocuidado/estetica", "looksmaxxing", "manosphere/ideologia",
                   "relacionamentos/seducao", "fitness/corpo", "desenvolvimento_pessoal",
                   "saude/sexualidade"}
-COLS_REVISAO = ["prioridade", "video_id", "url", "title", "channel_title", "categoria",
+COLS_REVISAO = ["prioridade", "amostra", "video_id", "url", "title", "channel_title", "categoria",
                 "tags", "descricao", "conteudo", "conteudo_2", "conteudo_score",
                 "conteudo_manual", "revisado"]
 
@@ -220,6 +235,7 @@ def gera_planilha_revisao(df):
     rev = df.copy()
     central = rev["conteudo"].isin(TEMAS_CENTRAIS) | rev["conteudo_2"].isin(TEMAS_CENTRAIS)
     rev["prioridade"] = np.where(central, 1, np.where(rev["conteudo_score"] < 0.40, 2, 3))
+    rev.loc[rev["amostra"], "prioridade"] = 0
     rev["tags"] = rev["tags"].str[:150]
     rev["descricao"] = rev["descricao"].str[:200].str.replace(r"\s+", " ", regex=True)
     rev["conteudo_manual"] = ""
@@ -254,10 +270,31 @@ def aplica_revisao(df):
     r = df[df["revisado"]]
     print(f"\n--- revisão manual: {len(r)} vídeos revisados, "
           f"{(r['conteudo_manual'] != '').sum()} corrigidos ---")
-    if len(r):
-        acerto = (r["conteudo_final"] == r["conteudo"]).mean()
-        print(f"acerto do automático nas linhas revisadas: {acerto:.1%}")
+
+    # acerto para o artigo: só a amostra aleatória (as outras linhas foram escolhidas a dedo)
+    a = df[df["amostra"]]
+    ra = a[a["revisado"]]
+    if len(ra):
+        p = (ra["conteudo_final"] == ra["conteudo"]).mean()
+        lo, hi = wilson(p, len(ra))
+        print(f"acerto do automático na AMOSTRA ALEATÓRIA: {p:.1%} "
+              f"(IC 95% {lo:.1%}-{hi:.1%}, n={len(ra)})")
+        if len(ra) < len(a):
+            print(f"  AVISO: {len(a) - len(ra)} linhas da amostra ainda sem 'revisado' marcado; "
+                  "revise todas para o número valer para o conjunto inteiro")
+    resto = r[~r["amostra"]]
+    if len(resto):
+        p = (resto["conteudo_final"] == resto["conteudo"]).mean()
+        print(f"acerto nas demais linhas revisadas (enviesado, só diagnóstico): {p:.1%} "
+              f"(n={len(resto)})")
     return df
+
+
+def wilson(p, n, z=1.96):
+    """Intervalo de confiança de Wilson para uma proporção."""
+    centro = (p + z * z / (2 * n)) / (1 + z * z / n)
+    margem = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return centro - margem, centro + margem
 
 
 # ---------------------------------------------------------------- main
@@ -271,6 +308,13 @@ def main():
     det = carrega_detalhes(df["video_id"].tolist())
     df["tags"] = df["video_id"].map(lambda v: ";".join(det[v]["tags"]))
     df["descricao"] = df["video_id"].map(lambda v: det[v]["descricao"][:500])
+    df["retornado"] = df["video_id"].map(lambda v: det[v]["retornado"])
+    n_fora = (~df["retornado"]).sum()
+    if n_fora:
+        print(f"AVISO: {n_fora} vídeos não foram devolvidos pela API (apagados/privados): "
+              "classificados só pelo título; descrição/tags = desconhecido")
+    df["amostra"] = df.index.isin(
+        df.sample(n=min(TAMANHO_AMOSTRA, len(df)), random_state=SEMENTE).index)
 
     textos = (df["title"].fillna("") + ". " + df["tags"].str.replace(";", ", ")
               + ". " + df["descricao"].str[:300]).tolist()
@@ -283,7 +327,8 @@ def main():
         df["conteudo_manual"], df["revisado"], df["conteudo_final"] = "", False, df["conteudo"]
 
     cols_ini = ["video_id", "url", "title", "channel_title", "categoria", "conteudo_final",
-                "conteudo", "conteudo_score", "conteudo_2", "conteudo_manual", "revisado"]
+                "conteudo", "conteudo_score", "conteudo_2", "conteudo_manual", "revisado",
+                "amostra", "retornado"]
     df = df[cols_ini + [c for c in df.columns if c not in cols_ini]]
     df.to_csv(SAIDA, index=False, encoding="utf-8-sig")
     print(f"salvo: {SAIDA.name}")
