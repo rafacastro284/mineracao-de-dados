@@ -59,6 +59,7 @@ anti-manosfera e interseção).
 | Transcrição dos vídeos | ✅ Feita — 1.841 de 2.088 |
 | Métricas, linkagem e monetização | ✅ Feita |
 | Normalização das transcrições | ✅ Feita |
+| Métricas de áudio e de fala | ✅ Feita (sem baixar os áudios de novo) |
 | Tópicos, palavras mais frequentes, toxicidade, resumo por LLM | ⬜ A fazer |
 | Levantamento de literatura | ⬜ A fazer |
 | Relatório (LaTeX) | ⬜ A fazer |
@@ -115,6 +116,7 @@ python3 basemateus/videosDoReddit/scripts/06_transcreve_videos.py   # 6. áudio 
 python3 basemateus/videosDoReddit/scripts/07_metricas_videos.py # 7. métricas (API)
 python3 basemateus/videosDoReddit/scripts/08_linkagem.py        # 8. destinos e monetização
 python3 basemateus/videosDoReddit/scripts/09_normaliza_transcricoes.py  # 9. texto limpo e lemas
+python3 basemateus/videosDoReddit/scripts/10_metricas_audio.py  # 10. métricas de fala (análise em notebooks/)
 ```
 Quem só vai analisar não precisa rodar nada: um `git pull` e usar os CSVs de
 `basemateus/videosDoReddit/resultados/`. Detalhes de cada etapa (retomar a
@@ -132,6 +134,7 @@ transcrição, rodar em paralelo, refazer vídeos) estão no guia.
 | `08_video_destinos.csv`, `08_dominios_classificados.csv` | links das descrições e tipo de monetização |
 | `08_subreddit_resumo.csv`, `08_subreddit_dominio.csv` | resumo por subreddit |
 | `09_transcricoes_normalizadas.csv` | `texto_limpo`, `lemas` e filtros de qualidade (`low_content`, `repeticao_alta`, `idioma_suspeito`) |
+| `10_metricas_audio.csv` | duração, palavras por minuto, cobertura e ritmo da fala; análise em `notebooks/10_metricas_audio.ipynb` |
 
 ---
 

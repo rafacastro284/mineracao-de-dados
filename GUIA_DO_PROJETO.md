@@ -52,6 +52,7 @@ Antes disso, no TP1, o grupo coletou vídeos do YouTube por **busca de termos**
 | Transcrição dos vídeos (etapa 6) | ✅ Feita — 1.841 de 2.088 |
 | Métricas, linkagem e monetização (etapas 7–8) | ✅ Feita |
 | Normalização das transcrições (etapa 9) | ✅ Feita — base recomendada de 1.637 vídeos |
+| Métricas de áudio e de fala (etapa 10) | ✅ Feita, sem as métricas de sinal (seção 8) |
 | Tópicos, palavras mais frequentes, toxicidade, resumo por LLM | ⬜ A fazer (seção 9) |
 | Levantamento de literatura | ⬜ A fazer |
 | Relatório (LaTeX) | ⬜ A fazer |
@@ -107,6 +108,7 @@ gasta cota e pode trazer números diferentes.
 | 7. Métricas dos vídeos | `07_metricas_videos.py` | `07_youtube_metricas.csv` | ✅ 2.088 |
 | 8. Linkagem e monetização | `08_linkagem.py` | `08_*.csv` | ✅ |
 | 9. Normalizar as transcrições | `09_normaliza_transcricoes.py` | `09_transcricoes_normalizadas.csv` | ✅ 1.841 |
+| 10. Métricas de áudio e de fala | `10_metricas_audio.py` + `notebooks/10_metricas_audio.ipynb` | `10_metricas_audio.csv` | ✅ 1.841 |
 
 Os scripts `01` a `05` do Matheus importam `common.py`, que estava salvo como
 `common copy.py`. O arquivo já foi renomeado.
@@ -336,6 +338,30 @@ notebook de transcrição. Ele tem a configuração do BERTopic, uma lista de st
 do domínio, o filtro de transcrições boas e ruins, os macrotópicos e o resumo por LLM.
 As transcrições de lá são de outro tema e não coincidem com os nossos vídeos.
 
+### Métricas de áudio e de fala (etapa 10)
+
+`scripts/10_metricas_audio.py` gera `resultados/10_metricas_audio.csv`, e a análise fica
+em `notebooks/10_metricas_audio.ipynb`, inspirado no `18_audio_metrics.ipynb` do
+`lei_felca`.
+
+- **Sem baixar os áudios de novo:** a etapa 6 apaga cada MP3, e baixar 284 h de novo
+  esbarra no bloqueio do YouTube. Por isso SNR, amplitude, zero-crossing rate e regiões
+  de silêncio ficaram de fora. As métricas saem da transcrição e da API: duração,
+  fim da última fala (`fim_fala_s`), `cobertura_fala`, palavras por minuto de vídeo e
+  de fala (`ppm_video`, `ppm_fala`), palavras por frase e faixa de `ritmo`.
+- **Primeiros resultados** (base recomendada em inglês original):
+  - manosphere e autocuidado têm fala mais densa que "fora do recorte": mediana de 174
+    contra 146 palavras por minuto (efeito médio, r ≈ 0,36). Looksmaxxing não difere;
+  - 91% dos vídeos de manosphere e 89% dos de autocuidado têm fala normal ou rápida,
+    contra 66% em "fora do recorte", que tem mais música, trailers e gameplay;
+  - os filtros de qualidade batem com as métricas (`low_content` tem mediana de 0,9 ppm);
+  - densidade de fala e duração quase não se relacionam com views.
+- **Ruído que sobrou:** 214 vídeos da base recomendada têm menos de 30 ppm ou mais de
+  100 palavras por frase (trailers, músicas e gameplay, quase todos fora do recorte).
+  `ppm_video < 30` pode virar um filtro extra nas análises de discurso.
+- Saídas extras: `10_resumo_por_bloco.csv`, `10_testes_por_bloco.csv`,
+  `10_correlacao_views.csv` e os gráficos em `resultados/graficos/`.
+
 ---
 
 ## 9. Próximos passos
@@ -344,7 +370,9 @@ As transcrições de lá são de outro tema e não coincidem com os nossos víde
 - [x] Reorganizar `videosDoReddit/` em `scripts/`, `entrada/`, `cache/` e `resultados/`
 - [x] Revisar idiomas detectados errado, refazer os vídeos com conteúdo e criar os
       filtros `idioma_suspeito` e loop de repetição
+- [x] Métricas de áudio e de fala (etapa 10), sem baixar os áudios de novo
 - [ ] Tirar à mão o `TaDhtEcX1TM` (Sakurai/Smash): continua sem sentido e passa nos filtros
+- [ ] Decidir se `ppm_video < 30` entra como filtro nas análises de discurso
 - [ ] Modelagem de tópicos (BERTopic) nas transcrições e palavras mais frequentes por bloco
 - [ ] Toxicidade das transcrições: Perspective API, se o Matheus tiver chave (é a mesma
       ferramenta do paper); se não tiver, Detoxify, comparando só entre os nossos grupos

@@ -1,0 +1,10 @@
+metrica,bloco,n,mediana,mediana_fora,p_mann_whitney,efeito_r
+ppm_video,manosphere/ideologia,186,174.25,145.55,0.0,0.363
+ppm_video,autocuidado/estetica,113,174.0,145.55,0.0,0.3579
+ppm_video,looksmaxxing,29,147.1,145.55,0.5501,0.065
+duracao_video_s,manosphere/ideologia,186,407.0,302.5,0.0009,0.1517
+duracao_video_s,autocuidado/estetica,113,533.0,302.5,0.0004,0.2031
+duracao_video_s,looksmaxxing,29,349.0,302.5,0.8622,-0.0189
+cobertura_fala,manosphere/ideologia,186,0.996,0.99,0.0,0.1866
+cobertura_fala,autocuidado/estetica,113,0.995,0.99,0.0283,0.125
+cobertura_fala,looksmaxxing,29,0.991,0.99,0.7707,0.0316
