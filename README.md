@@ -1,18 +1,51 @@
-# Mineração de Dados — Do autocuidado ao manosphere no YouTube
+# Mineração de Dados — Que vídeos as comunidades da manosfera no Reddit compartilham
 
-Trabalho Prático 1 da disciplina de **Mineração de Dados**.
-Estudo de caso que coleta e minera vídeos do YouTube sobre o **conteúdo masculino**,
-num espectro que vai do **autocuidado/estética** (skincare, grooming, glow up,
-looksmaxxing) até o discurso de **masculinidade/manosphere** (alpha male,
-high-value man, etc.). O objetivo é entender como esse universo se organiza, quais
-temas engajam mais e como evolui no tempo — dialogando com a discussão sobre o
-cuidado pessoal como porta de entrada ("softmaxxing") de um funil maior.
+Trabalho da disciplina de **Mineração de Dados**. Partimos da base de subreddits do
+artigo do Matheus, *Mapeando Pontes da Misoginia* (WebMedia 2026), para descobrir
+**que tipos de vídeos essas comunidades compartilham** e para onde esses vídeos levam
+quem assiste.
 
-- **Apresentações:** 22/09/2026 e 24/09/2026
-- **Base atual:** 9.699 vídeos (PT + EN), limpos, classificados e lematizados
-- **Fonte dos dados:** YouTube Data API v3 (coleta própria)
+**Como a base foi construída:**
+1. **Subreddits do artigo:** os 1.000 subreddits com mais variedade de palavras-chave
+   da manosfera, com as 300 publicações de maior score de cada um.
+2. **Links compartilhados:** extraímos os links dos posts e classificamos por
+   plataforma. Fora o próprio Reddit, o YouTube é o destino externo mais comum.
+3. **Vídeos do YouTube:** coletamos os links que levam ao YouTube e validamos os vídeos
+   pela API (2.088 válidos), com métricas, blocos temáticos e os links das descrições
+   (monetização).
+4. **Transcrição:** baixamos o áudio e transcrevemos os vídeos com o Whisper, depois
+   normalizamos o texto para a análise. Transcrevemos porque título e descrição mostram
+   como o vídeo se apresenta, não o que ele diz: o texto falado é a base da modelagem
+   de tópicos, da toxicidade e dos resumos.
 
-> Guia detalhado do projeto (pipeline, reprodução, metodologia): ver `GUIA_DO_PROJETO.md`.
+**Transcrição: 1.841 de 2.088 vídeos (88%, cerca de 284 h de áudio).** Os 247 que
+ficaram de fora:
+
+| Motivo | Vídeos |
+|---|---:|
+| Mais de 1 hora (pulados de propósito: lives, podcasts e transmissões longas) | 173 |
+| Restrição de idade ou pedido de login | 39 |
+| Removido, privado ou indisponível | 19 |
+| Bloqueado por direitos autorais | 6 |
+| Live em andamento ou gravação de live indisponível | 5 |
+| Só para membros do canal | 2 |
+| Outros (bloqueio regional, HTTP 403) | 3 |
+
+Depois dos filtros de qualidade (vídeos quase sem fala, alucinações do Whisper e
+idioma detectado errado), a base recomendada para análise tem **1.637 vídeos**. Por
+bloco, no guia (seção 7).
+
+Em cada ponto do caminho **subreddit → vídeo → destino**, a análise olha
+**toxicidade** e **monetização**, comparando os grupos do artigo (pró-manosfera,
+anti-manosfera e interseção).
+
+- **Fontes dos dados:** base de subreddits do artigo do Matheus (Reddit) e YouTube
+  Data API v3
+- **Base principal:** `basemateus/videosDoReddit/resultados/09_transcricoes_normalizadas.csv`
+  (1.841 transcrições; base recomendada para análise: 1.637)
+
+> Guia detalhado (pipeline, reprodução, decisões e o trabalho anterior):
+> ver `GUIA_DO_PROJETO.md`.
 
 ---
 
@@ -20,21 +53,16 @@ cuidado pessoal como porta de entrada ("softmaxxing") de um funil maior.
 
 | Etapa | Situação |
 |-------|----------|
-| Coleta de vídeos | ✅ Feita — 9.699 vídeos |
-| Pré-processamento / limpeza | ✅ Feito |
-| Classificação em blocos + categoria legível | ✅ Feito |
-| Lematização (PLN) de títulos + descrições | ✅ Feito |
-| Coleta de comentários | ✅ Feita — 177.640 comentários — ⬜ falta anonimizar `autor` e usar na análise |
-| Mineração — engajamento por bloco/idioma/ano | ✅ Feito |
-| Mineração — evolução temporal por bloco | ✅ Feito |
-| Mineração — comparação estatística PT × EN | ✅ Feito |
-| Mineração — agrupamento / topic modeling (BERTopic) | ⬜ Rodado, falta preencher a classificação manual dos tópicos |
+| Subreddits do artigo e extração dos links dos posts | ✅ Feita — 46.055 ocorrências em 810 subreddits |
+| Validação dos vídeos do YouTube pela API | ✅ Feita — 2.088 vídeos |
+| Classificação dos vídeos em blocos | ✅ Feita |
+| Transcrição dos vídeos | ✅ Feita — 1.841 de 2.088 |
+| Métricas, linkagem e monetização | ✅ Feita |
+| Normalização das transcrições | ✅ Feita |
+| Tópicos, palavras mais frequentes, toxicidade, resumo por LLM | ⬜ A fazer |
 | Levantamento de literatura | ⬜ A fazer |
 | Relatório (LaTeX) | ⬜ A fazer |
 | Apresentação | ⬜ A fazer |
-
-**A base final para a mineração é `dados/processados/videos_lematizados.csv`.**
-**Os resultados da mineração ficam em `dados/processados/resultados/`.**
 
 ---
 
@@ -42,34 +70,21 @@ cuidado pessoal como porta de entrada ("softmaxxing") de um funil maior.
 
 ```
 mineracao-de-dados/
-├── dados/
-│   ├── brutos/          # dado cru da API (NÃO editar na mão)
-│   │   ├── videos_masculino.csv
-│   │   └── comentarios.csv        (após rodar o coletor de comentários)
-│   └── processados/     # dado tratado, usado na mineração
-│       ├── videos_limpos.csv
-│       ├── videos_classificados.csv
-│       ├── videos_lematizados.csv   <- base final
-│       ├── resumo_termos.csv
-│       ├── videos_por_ano.csv
-│       └── resultados/  # tabelas .csv + gráficos .png da mineração
-├── scripts/
-│   ├── coletor_youtube.py     # coleta metadados dos vídeos (acumula)
-│   ├── coletor_comentarios.py # coleta comentários dos vídeos
-│   ├── limpeza.py             # gera a base limpa
-│   ├── classifica_blocos.py   # cria as colunas 'bloco' e 'categoria'
-│   ├── lematiza.py            # lematiza títulos+descrições (spaCy PT/EN)
-│   ├── resumo_termos.py       # relatórios de apoio (termos, por ano)
-│   ├── analise_frequencia.py  # mineração: cruzamentos, engajamento, evolução temporal, PT×EN
-│   └── bertopics.py           # mineração: topic modeling (BERTopic) por idioma
-├── notebooks/           # exploração e mineração
-├── relatorio/           # relatório em LaTeX
+├── basemateus/                 # projeto atual
+│   ├── data/                   # subreddits do artigo e links extraídos (Matheus)
+│   ├── scripts/                # etapas 1–2: extrair e classificar os links dos posts
+│   └── videosDoReddit/
+│       ├── scripts/            # etapas 3–9: validar, classificar, transcrever, métricas, linkagem, normalizar
+│       ├── entrada/            # links do YouTube e vídeos válidos
+│       ├── cache/              # respostas da API e progresso da transcrição (não apagar)
+│       ├── resultados/         # CSVs gerados: use estes nas análises
+│       └── transcricoes/       # um .txt por vídeo
+├── dados/ e scripts/           # trabalho anterior (TP1): coleta por busca no YouTube
+├── notebooks/
+├── relatorio/                  # relatório em LaTeX
 ├── README.md
 └── GUIA_DO_PROJETO.md
 ```
-
-**Regra de ouro:** dado bruto nunca é editado na mão. Todo tratamento é feito por
-script, gerando uma cópia em `dados/processados/`.
 
 ---
 
@@ -77,99 +92,75 @@ script, gerando uma cópia em `dados/processados/`.
 
 ### Pré-requisitos
 ```
-pip3 install --break-system-packages google-api-python-client pandas python-dotenv spacy
-python3 -m spacy download pt_core_news_sm
+sudo apt install ffmpeg nodejs
+pip3 install -U pandas requests python-dotenv sentence-transformers yt-dlp openai-whisper spacy bertopic
 python3 -m spacy download en_core_web_sm
 ```
-Se o `spacy download` reclamar de "externally-managed-environment", instale os
-modelos direto (ver `GUIA_DO_PROJETO.md`).
 
 ### Chave da API
-Só necessária para **coletar**. Cada integrante usa a **sua própria** chave da
-YouTube Data API v3 (gratuita, sem cartão), num `.env` dentro de `scripts/`
-(o `.gitignore` já ignora):
+Só necessária para consultar a API do YouTube (etapas 3, 4 e 7). Fica em
+`basemateus/videosDoReddit/.env`, fora do Git:
 ```
 YT_API_KEY=SUA_CHAVE_AQUI
 ```
 
 ### Ordem de execução
 ```
-python3 scripts/coletor_youtube.py       # 1. coleta/atualiza os vídeos (precisa de chave)
-python3 scripts/limpeza.py               # 2. gera a base limpa
-python3 scripts/classifica_blocos.py     # 3. cria 'bloco' e 'categoria'
-python3 scripts/lematiza.py              # 4. cria 'lemas'
-python3 scripts/analise_frequencia.py    # 5. mineração: cruzamentos, engajamento, evolução, PT×EN
-python3 scripts/bertopics.py             # 6. mineração: topic modeling (rodar 2x, ver script)
+python3 basemateus/scripts/01_extract_links.py                  # 1. links dos posts
+python3 basemateus/scripts/02_classify.py                       # 2. classifica por plataforma
+python3 basemateus/videosDoReddit/scripts/03_validate_yotube.py # 3. valida os vídeos (API)
+python3 basemateus/videosDoReddit/scripts/04_classifica_videos.py
+python3 basemateus/videosDoReddit/scripts/05_agrupa_blocos.py   # 4–5. blocos temáticos
+python3 basemateus/videosDoReddit/scripts/06_transcreve_videos.py   # 6. áudio + Whisper (demorado)
+python3 basemateus/videosDoReddit/scripts/07_metricas_videos.py # 7. métricas (API)
+python3 basemateus/videosDoReddit/scripts/08_linkagem.py        # 8. destinos e monetização
+python3 basemateus/videosDoReddit/scripts/09_normaliza_transcricoes.py  # 9. texto limpo e lemas
 ```
-Quem só vai **minerar** nem precisa coletar: um `git pull` e usar o
-`videos_lematizados.csv`. Os caminhos são resolvidos automaticamente.
+Quem só vai analisar não precisa rodar nada: um `git pull` e usar os CSVs de
+`basemateus/videosDoReddit/resultados/`. Detalhes de cada etapa (retomar a
+transcrição, rodar em paralelo, refazer vídeos) estão no guia.
 
 ---
 
-## Dicionário de dados (`videos_lematizados.csv`)
+## Principais arquivos de resultado (`basemateus/videosDoReddit/resultados/`)
 
-| Coluna | Descrição |
-|--------|-----------|
-| `video_id` | ID único do vídeo no YouTube |
-| `titulo` / `descricao` | textos do vídeo (emojis e acentos preservados) |
-| `canal` | nome do canal |
-| `publicado_em` / `ano` | data de publicação (UTC) e ano |
-| `categoria_id` / `categoria` | categoria do YouTube (código e nome legível) |
-| `idioma_video` | idioma declarado pelo canal |
-| `tags` | tags do vídeo, separadas por `\|` |
-| `duracao_iso` / `duracao_seg` | duração (ISO 8601 e em segundos) |
-| `views` / `likes` / `comentarios` | métricas (likes/comentários podem estar ocultos) |
-| `termo_busca` / `idioma_termo` | termo e idioma da busca que trouxe o vídeo |
-| `bloco` | eixo temático: autocuidado/estetica, looksmaxxing, manosphere/ideologia, criadores_pt |
-| `lemas` | títulos + descrições lematizados (para mineração de texto) |
-
-`comentarios.csv`: `comment_id`, `video_id`, `autor`, `texto`, `likes`, `publicado_em`, `respostas`.
+| Arquivo | Conteúdo |
+|---|---|
+| `youtube_videos_blocos.csv` | vídeos válidos com bloco temático, canal e subreddits de origem |
+| `06_transcricoes.csv` | status, idioma e transcrição bruta de cada vídeo |
+| `07_youtube_metricas.csv` | views, curtidas, comentários e duração |
+| `08_video_destinos.csv`, `08_dominios_classificados.csv` | links das descrições e tipo de monetização |
+| `08_subreddit_resumo.csv`, `08_subreddit_dominio.csv` | resumo por subreddit |
+| `09_transcricoes_normalizadas.csv` | `texto_limpo`, `lemas` e filtros de qualidade (`low_content`, `repeticao_alta`, `idioma_suspeito`) |
 
 ---
 
-## Resultados da mineração (`dados/processados/resultados/`)
+## Próximos passos
 
-Gerados por `analise_frequencia.py`:
-- `resumo_geral_por_bloco.csv` — n, % menciona valor, mediana de views, % emoji, por bloco
-- `tabela_bloco_x_menciona_valor.csv`, `grafico_bloco_x_menciona_valor.png`
-- `grafico_views_x_menciona_valor.png`, `grafico_bloco_x_emoji.png`, `grafico_views_entre_blocos.png`
-- `engajamento_por_bloco.csv` / `engajamento_por_idioma.csv` (só PT/EN) / `engajamento_por_ano.csv`
-- `concentracao_por_canal.csv`
-- `evolucao_temporal.csv`, `grafico_evolucao_temporal.png` — % menciona valor ao longo dos anos, uma linha por bloco
-- `comparacao_pt_en.csv` — comparação estatística PT × EN (menção a valor: qui-quadrado; engajamento: Mann-Whitney)
-
-Gerados por `bertopics.py` (topic modeling por idioma):
-- `topicos_pt.csv` / `topicos_en.csv`, `topicos_pt_resumo.csv` / `topicos_en_resumo.csv`
-- `topicos_pt_PARA_CLASSIFICAR.csv` / `topicos_en_PARA_CLASSIFICAR.csv` — **preencher `categoria_manual` à mão** e rodar o script de novo para gerar `videos_com_categoria_topico.csv`
-- `grafico_topicos_pt.png` / `grafico_topicos_en.png`, `topicos_pt_barchart.html` / `topicos_en_barchart.html`, `topicos_pt_mapa.html` / `topicos_en_mapa.html`
+- [ ] Modelagem de tópicos (BERTopic) nas transcrições e palavras mais frequentes por bloco
+- [ ] Toxicidade das transcrições (Perspective API ou Detoxify)
+- [ ] Resumo dos vídeos por LLM e agrupamento
+- [ ] Concentração da monetização por canal; tipo e preço dos cursos
+- [ ] Levantar 2–4 trabalhos recentes da literatura
+- [ ] Escrever o relatório (LaTeX) e montar a apresentação
 
 ---
 
-## Decisões e observações
+## Trabalho anterior (TP1): coleta por busca no YouTube
 
-- **Coleta acumulativa:** o coletor não sobrescreve; lê a base e só adiciona vídeos
-  inéditos. Dá pra crescer a base variando o `ORDER` (`relevance`/`viewCount`/`date`).
-- **Cota da API:** ~10.000 unidades/dia. Busca custa 100; comentário, 1. Se esgotar,
-  os scripts param e retomam no dia seguinte.
-- **Limpeza:** normaliza texto (NFC), remove só invisíveis órfãos e **preserva emojis
-  e acentos**.
-- **Blocos:** a classificação é pelo termo de busca (1ª camada); será validada/
-  complementada por agrupamento automático na mineração.
-- **Lematização:** por idioma (spaCy PT/EN). O modelo PT (`sm`) erra em gíria
-  ("rotina"→"rotino") — limitação conhecida, aceitável para agrupar temas.
-- **Faltantes respeitados:** descrição/tags vazias e likes ocultos **não são
-  imputados**.
-- **Privacidade (comentários):** descartar/anonimizar a coluna `autor` na análise.
+Antes da base do Reddit, o grupo coletou **9.699 vídeos (PT + EN)** pela busca de
+termos na API do YouTube, num espectro que vai do autocuidado/estética ao discurso
+de manosphere, com 177.640 comentários. Essa base foi limpa, classificada em blocos,
+lematizada e minerada (engajamento, evolução temporal, PT × EN e BERTopic).
+
+- Base: `dados/processados/videos_lematizados.csv`; resultados em
+  `dados/processados/resultados/`; scripts em `scripts/`.
+- Ordem: `coletor_youtube.py` → `limpeza.py` → `classifica_blocos.py` →
+  `lematiza.py` → `analise_frequencia.py` → `bertopics.py`.
+- Pendente: preencher `categoria_manual` nas planilhas `topicos_*_PARA_CLASSIFICAR.csv`.
+- Pipeline, dicionário de dados e decisões: seção 11 do `GUIA_DO_PROJETO.md`.
 
 ---
-
-## Próximos passos (dividir entre o time)
-
-- [ ] Preencher `categoria_manual` nas planilhas do BERTopic e rodar `bertopics.py` de novo
-- [ ] (Opcional) Anonimizar `autor` em `comentarios.csv` e usar os comentários na análise
-- [ ] Levantar 2–4 trabalhos recentes da literatura sobre o tema
-- [ ] Escrever o relatório (LaTeX)
-- [ ] Montar a apresentação
 
 ## Integrantes
 Bárbara
